@@ -1539,7 +1539,7 @@ function openSettings(){
     <textarea id="sRu" rows="4">${esc((S.regole||[]).map(([r,c])=>`${r} → ${c}`).join('\n'))}</textarea>
     <h3 style="margin-top:14px">Avvisi</h3><div class="btns"><button type="button" class="btn small ghost" id="sNot">${st.notifiche?'Avvisi attivi':'Attiva avvisi all\'apertura'}</button></div>
     <h3 style="margin-top:14px">I tuoi dati</h3><p class="small muted">Restano solo in questo browser. Scarica un backup ogni settimana.</p>
-    <div class="btns"><button type="button" class="btn small" id="bExp">Scarica backup</button><label class="btn small ghost" style="cursor:pointer">Carica backup o dati iniziali<input type="file" id="bImp" accept=".json" hidden></label><button type="button" class="btn small danger" id="bRes">Cancella tutto</button></div>`,
+    <div class="btns"><button type="button" class="btn small" id="bExp">Scarica backup</button><label class="btn small ghost" style="cursor:pointer">Carica backup o dati iniziali<input type="file" id="bImp" accept="application/json,text/plain,.json,.txt,*/*" hidden></label><button type="button" class="btn small ghost" id="bPaste">Incolla dati</button><button type="button" class="btn small danger" id="bRes">Cancella tutto</button></div>`,
     `<button type="button" class="btn ghost" id="c">Chiudi</button><button type="button" class="btn" id="ok">Salva impostazioni</button>`,
     ()=>{ $('c').onclick=closeDlg;
       $('ok').onclick=()=>{ Object.assign(S.settings,{nome:$('sN').value.trim(),tema:$('sTh').value,sogliaMicro:num($('sMi').value)||10,costoKm:num($('sKm').value)||0.16,finestra:Math.max(1,Math.round(num($('sW').value)||14)),minimoGiorno:num($('sMin').value)||0,discreta:$('sDi').checked,googleClientId:$('sG').value.trim()});
@@ -1549,6 +1549,7 @@ function openSettings(){
       $('sNot').onclick=async()=>{ if(!('Notification' in window)) return toast('Questo browser non supporta gli avvisi'); const r=await Notification.requestPermission(); S.settings.notifiche=r==='granted'; save(); $('sNot').textContent=S.settings.notifiche?'Avvisi attivi':'Avvisi non concessi'; };
       $('bExp').onclick=()=>download(`treasure-chest-backup-${todayISO()}.json`,JSON.stringify(S,null,1),'application/json');
       $('bImp').onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ importJson(JSON.parse(r.result)); closeDlg(); renderAll(); }catch(e){ toast('File non valido'); } }; r.readAsText(f); };
+      $('bPaste').onclick=()=>{ closeDlg(); setTimeout(openPaste,150); };
       $('bRes').onclick=()=>{ if(confirm('Cancello tutti i dati da questo dispositivo? Scarica prima un backup.')){ S=fresh(); invalidate(); save(); closeDlg(); renderAll(); welcome(); } };
     });
 }
@@ -1570,12 +1571,19 @@ function importJson(j){
   S.configurata=true; if(!S.settings.avvio) S.settings.avvio=todayISO();
   invalidate(); save(); toast(`Dati caricati: ${costi.length} costi fissi e ${Object.keys(j.storico||{}).length} mesi di storico`);
 }
+function openPaste(){
+  openDlg(`<h3>Incolla i dati</h3><p class="small">Apri il file dei dati (anche la versione .txt) in Note, Drive o nell'app File, seleziona tutto il testo, copialo e incollalo qui sotto.</p><textarea id="pTxt" rows="8" placeholder='{"versione":3, ...}' style="font-size:.8rem"></textarea>`,
+    `<button type="button" class="btn ghost" id="c">Annulla</button><button type="button" class="btn" id="ok">Carica</button>`,
+    ()=>{ $('c').onclick=()=>{ closeDlg(); if(!S.configurata) setTimeout(welcome,200); }; $('ok').onclick=()=>{ try{ const t=$('pTxt').value.trim(); const j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1)); importJson(j); closeDlg(); renderAll(); }catch(e){ toast('Il testo non è valido: copia tutto il file, dalla prima { all\'ultima }'); } }; });
+}
 function welcome(){
   openDlg(`<h3>Benvenuta in Treasure Chest</h3><p>Carica il file <b>treasure-chest-dati-iniziali.json</b> per partire con saldo, stage, rimborso, costi fissi e un anno di storico. Oppure parti da zero.</p>
-    <div class="btns"><label class="btn gold" style="cursor:pointer">Carica i dati iniziali<input type="file" id="wlF" accept=".json" hidden></label></div>
+    <div class="btns"><button type="button" class="btn ghost small" id="wlP">Non riesco a scegliere il file: incollo il testo</button></div>
+    <div class="btns"><label class="btn gold" style="cursor:pointer">Carica i dati iniziali<input type="file" id="wlF" accept="application/json,text/plain,.json,.txt,*/*" hidden></label></div>
     <div id="wlZ" hidden><div class="grid2"><div><label class="f" for="wlN">Il tuo nome</label><input type="text" id="wlN"></div><div><label class="f" for="wlS">Saldo di oggi (€)</label><input type="number" id="wlS"></div><div><label class="f" for="wlE">Entrata mensile netta (€)</label><input type="number" id="wlE"></div><div><label class="f" for="wlG">Obiettivo (€)</label><input type="number" id="wlG" value="10000"></div></div></div>`,
     `<button type="button" class="btn ghost" id="wlZb">Parto da zero</button>`,
-    ()=>{ $('wlF').onchange=ev=>{ const f=ev.target.files[0]; const r=new FileReader(); r.onload=()=>{ try{ importJson(JSON.parse(r.result)); closeDlg(); renderAll(); }catch(e){ toast('File non valido'); } }; r.readAsText(f); };
+    ()=>{ $('wlP').onclick=()=>{ closeDlg(); setTimeout(openPaste,150); };
+      $('wlF').onchange=ev=>{ const f=ev.target.files[0]; const r=new FileReader(); r.onload=()=>{ try{ importJson(JSON.parse(r.result)); closeDlg(); renderAll(); }catch(e){ toast('File non valido'); } }; r.readAsText(f); };
       $('wlZb').onclick=()=>{ if($('wlZ').hidden){ $('wlZ').hidden=false; $('wlZb').textContent='Inizia'; $('wlZb').className='btn'; return; }
         S.settings.nome=$('wlN').value.trim(); S.obiettivo.importo=num($('wlG').value)||10000; const s=num($('wlS').value); if(isFinite(s)) S.saldi.push({data:todayISO(),saldo:s,ts:Date.now()});
         const e=num($('wlE').value); if(e>0) S.entrateRicorrenti.push({id:uid(),nome:'Entrata mensile',importo:e,giorno:27,dal:todayISO(),al:'',attiva:true});
