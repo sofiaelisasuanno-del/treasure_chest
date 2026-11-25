@@ -1,0 +1,5 @@
+# Dati personali: non vanno mai su GitHub
+*dati-iniziali*.json
+*backup*.json
+*.pdf
+*.csv
